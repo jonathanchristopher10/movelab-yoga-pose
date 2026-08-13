@@ -1,0 +1,30 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Core — Button, Card, PoseCard" subtitle="Buttons, base panel, pose selection row" -->
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<div id="root" style="background:var(--bg-warm);padding:20px"></div>
+<script type="text/babel">
+const { PillButton, Card, PoseCard } = window.MoveLabDesignSystem_668814;
+function Demo(){
+  const [sel, setSel] = React.useState('tree');
+  return (
+    <div style={{display:'flex',gap:20,fontFamily:'var(--font-body)'}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:10}}>
+        <PillButton label="Touch to Start" onClick={()=>{}} />
+        <PillButton label="Next" variant="ghost" />
+        <PillButton label="Continue" disabled />
+      </div>
+      <Card style={{flex:1}}>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <PoseCard name="Tree Pose" difficulty="Easy" thumbnail="../../assets/pose-tree.png" selected={sel==='tree'} onClick={()=>setSel('tree')} />
+          <PoseCard name="Warrior II" difficulty="Medium" thumbnail="../../assets/pose-warrior.png" selected={sel==='warrior'} onClick={()=>setSel('warrior')} />
+          <PoseCard name="Chair Pose" difficulty="Hard" thumbnail="../../assets/pose-chair.png" selected={sel==='chair'} onClick={()=>setSel('chair')} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>

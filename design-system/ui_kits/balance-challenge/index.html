@@ -1,0 +1,84 @@
+<!-- @dsCard group="Balance Challenge" viewport="420x820" name="Booth App" subtitle="Landing → How to Play → Choose Pose → Capture → Score, auto-resets" -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+body{margin:0;background:#DCD8CF;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-body)}
+*{box-sizing:border-box}
+.phone{width:390px;height:760px;border-radius:36px;overflow:hidden;background:var(--bg-warm);box-shadow:var(--shadow-float);position:relative;border:8px solid var(--ink)}
+.screen{position:absolute;inset:0;transition:opacity var(--duration-standard) var(--ease-standard)}
+</style>
+</head>
+<body>
+<div id="root"><div class="phone"><div style="position:relative;width:100%;height:100%;overflow:hidden;display:flex;flex-direction:column"><img src="../../assets/background-landing.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(244,242,238,0.15) 0%,rgba(244,242,238,0.75) 78%,rgba(244,242,238,0.95) 100%)"></div><div style="position:relative;padding:32px 28px 0;display:flex;justify-content:center"><img src="../../assets/movelab-wordmark.png" alt="MoveLab" style="height:32px;width:146px"></div><div style="position:relative;margin-top:auto;padding:0 28px 36px;text-align:center"><div style="font-family:var(--font-display);font-size:46px;line-height:1.05;letter-spacing:0.02em;text-transform:uppercase;color:#111">Balance<br>Challenge</div><div style="font-family:var(--font-body);font-size:19px;color:var(--text-secondary);margin-top:8px;margin-bottom:28px">Find Your Balance.</div><div style="width:100%;padding:18px 28px;border-radius:999px;background:#111;color:#fff;font-family:var(--font-body);font-weight:700;font-size:15px;letter-spacing:0.08em;text-transform:uppercase;box-sizing:border-box">Touch to Start</div></div></div></div></div>
+<script type="text/babel" src="Landing.jsx"></script>
+<script type="text/babel" src="HowToPlay.jsx"></script>
+<script type="text/babel" src="ChoosePose.jsx"></script>
+<script type="text/babel" src="Capture.jsx"></script>
+<script type="text/babel" src="Score.jsx"></script>
+<script type="text/babel">
+const { PillButton, Card, PoseCard, ProgressRing, Countdown, PhotoFrame, IconRow } = window.MoveLabDesignSystem_668814;
+
+function App(){
+  const [screen, setScreen] = React.useState('landing');
+  const [pose, setPose] = React.useState(null);
+  const [phase, setPhase] = React.useState('prep');
+  const [seconds, setSeconds] = React.useState(3);
+  const [score, setScore] = React.useState(0);
+  const idleRef = React.useRef(null);
+
+  const resetIdle = () => {
+    clearTimeout(idleRef.current);
+    idleRef.current = setTimeout(() => setScreen('landing'), 45000);
+  };
+  React.useEffect(() => { resetIdle(); }, [screen]);
+
+  const startCapture = (p) => {    setPose(p); setScreen('capture'); setPhase('prep'); setSeconds(3);
+  };
+
+  React.useEffect(() => {
+    if (screen !== 'capture') return;
+    if (phase === 'prep') {
+      if (seconds <= 0) { setPhase('hold'); setSeconds(8); return; }
+      const t = setTimeout(() => setSeconds(s => s - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'hold') {
+      if (seconds <= 0) {
+        const s = Math.round(85 + Math.random() * 14);
+        setScore(s);
+        setScreen('score');
+        return;
+      }
+      const t = setTimeout(() => setSeconds(s => s - 1), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [screen, phase, seconds]);
+
+  React.useEffect(() => {
+    if (screen === 'score') {
+      const t = setTimeout(() => setScreen('landing'), 12000);
+      return () => clearTimeout(t);
+    }
+  }, [screen]);
+
+  return (
+    <div className="phone" onClick={resetIdle}>
+      {screen === 'landing' && <Landing onStart={() => setScreen('howToPlay')} />}
+      {screen === 'howToPlay' && <HowToPlay onNext={() => setScreen('choosePose')} IconRow={IconRow} PillButton={PillButton} />}
+      {screen === 'choosePose' && <ChoosePose onNext={startCapture} PoseCard={PoseCard} PillButton={PillButton} />}
+      {screen === 'capture' && pose && <Capture pose={pose} phase={phase} seconds={seconds} Countdown={Countdown} />}
+      {screen === 'score' && pose && <Score pose={pose} score={score} PhotoFrame={PhotoFrame} />}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

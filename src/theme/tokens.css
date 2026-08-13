@@ -1,0 +1,7 @@
+/* Design tokens — copied verbatim from the MoveLab design system (design-system/tokens/*).
+   Fonts are NOT imported here: the design system's fonts.css loads Anton/Inter from a CDN,
+   but a booth may be offline, so we self-host them via @fontsource in main.tsx instead. */
+@import './colors.css';
+@import './typography.css';
+@import './spacing.css';
+@import './effects.css';

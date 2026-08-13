@@ -1,0 +1,29 @@
+@import './theme/tokens.css';
+
+/* ---- Global reset + kiosk hardening ---------------------------------- */
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  /* The area around the scaled stage on displays whose aspect ratio doesn't
+     match the portrait canvas. A calm neutral so signage letterboxing is subtle. */
+  background: #DCD8CF;
+  /* Kiosk: no text selection, no long-press callout, no tap highlight. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+button { font-family: var(--font-body); -webkit-tap-highlight-color: transparent; }
