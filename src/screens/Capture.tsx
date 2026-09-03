@@ -9,15 +9,12 @@ interface CaptureProps {
   seconds: number;
   videoRef: RefObject<HTMLVideoElement>;
   cameraStatus: CameraStatus;
-  /** True once the customer chose to play without a camera — suppresses the error overlay. */
-  simulated: boolean;
   onRetryCamera: () => void;
-  onSkipCamera: () => void;
 }
 
-export function Capture({ pose, phase, seconds, videoRef, cameraStatus, simulated, onRetryCamera, onSkipCamera }: CaptureProps) {
+export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera }: CaptureProps) {
   const cameraLive = cameraStatus === 'ready' || cameraStatus === 'requesting';
-  const cameraBlocked = (cameraStatus === 'denied' || cameraStatus === 'error') && !simulated;
+  const cameraBlocked = cameraStatus === 'denied' || cameraStatus === 'error';
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--ink)' }}>
@@ -96,8 +93,8 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, simulate
           </div>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-on-dark-muted)', maxWidth: 280, lineHeight: 1.5 }}>
             {cameraStatus === 'denied'
-              ? 'Allow camera access to play the balance challenge.'
-              : 'We couldn’t reach the camera on this device.'}
+              ? 'Camera access is required to play. Please allow the camera, then try again.'
+              : 'We couldn’t reach the camera on this device. Please try again.'}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 260, marginTop: 8 }}>
             <button
@@ -117,24 +114,6 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, simulate
               }}
             >
               Try again
-            </button>
-            <button
-              onClick={onSkipCamera}
-              style={{
-                padding: '16px 24px',
-                borderRadius: 'var(--radius-pill)',
-                border: '1.5px solid rgba(255,255,255,0.5)',
-                background: 'transparent',
-                color: '#fff',
-                fontFamily: 'var(--font-body)',
-                fontWeight: 700,
-                fontSize: 14,
-                letterSpacing: 'var(--tracking-label)',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              Continue without camera
             </button>
           </div>
         </div>

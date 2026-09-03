@@ -1,15 +1,12 @@
 import { PhotoFrame } from '../components/PhotoFrame';
-import type { Pose } from '../lib/poses';
 
 interface ScoreProps {
-  pose: Pose;
   score: number;
-  /** Captured selfie (data URL). Falls back to the pose thumbnail if the camera was skipped. */
+  /** Captured selfie (data URL) from the live camera. */
   photo: string | null;
 }
 
-export function Score({ pose, score, photo }: ScoreProps) {
-  const hasPhoto = Boolean(photo);
+export function Score({ score, photo }: ScoreProps) {
   return (
     <div
       style={{
@@ -41,7 +38,7 @@ export function Score({ pose, score, photo }: ScoreProps) {
         Amazing! You did it.
       </div>
       <div style={{ width: '100%' }}>
-        <PhotoFrame photo={photo ?? pose.thumb} score={score} logo="/assets/movelab-wordmark.png" mirror={hasPhoto} />
+        <PhotoFrame photo={photo} score={score} logo="/assets/movelab-wordmark.png" mirror />
       </div>
       {/* QR to download the captured photo. Placeholder until the (deferred) backend
           hosts the photo and returns a short URL to encode — see README backend seam. */}

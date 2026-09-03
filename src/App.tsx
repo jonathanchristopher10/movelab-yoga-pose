@@ -19,11 +19,6 @@ const HOLD_SECONDS = 8;
 const SCORE_AUTORESET_MS = 12000;
 const IDLE_RESET_MS = 45000;
 
-/** Feel-good fallback used when the customer opts to play without a camera. */
-function simulatedScore(): number {
-  return Math.round(90 + Math.random() * 8);
-}
-
 export default function App() {
   const [screen, setScreen] = useState<Screen>('landing');
   const [pose, setPose] = useState<Pose | null>(null);
@@ -31,7 +26,6 @@ export default function App() {
   const [seconds, setSeconds] = useState(PREP_SECONDS);
   const [score, setScore] = useState(0);
   const [photo, setPhoto] = useState<string | null>(null);
-  const [simulated, setSimulated] = useState(false);
   const attemptRef = useRef(0);
 
   const { videoRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold } = usePoseCapture();
@@ -41,7 +35,6 @@ export default function App() {
     setPose(null);
     setPhoto(null);
     setScore(0);
-    setSimulated(false);
   };
 
   // Idle guard on every screen except the landing (which is the reset target).
@@ -49,7 +42,6 @@ export default function App() {
 
   const startCapture = (p: Pose) => {
     attemptRef.current = 0;
-    setSimulated(false);
     setPose(p);
     setPhase('prep');
     setSeconds(PREP_SECONDS);
@@ -63,16 +55,16 @@ export default function App() {
   }, [screen, startCamera, stopCamera]);
 
   // Capture timeline: prep countdown → hold countdown → score.
+  // The camera is required — the timeline only advances once it is granted.
   useEffect(() => {
     if (screen !== 'capture') return;
-    const ready = cameraStatus === 'ready' || simulated;
-    if (!ready) return; // wait for the camera (or a "continue without camera" choice)
+    if (cameraStatus !== 'ready') return; // wait for camera access; no bypass
 
     if (phase === 'prep') {
       if (seconds <= 0) {
         setPhase('hold');
         setSeconds(HOLD_SECONDS);
-        if (!simulated) startHold();
+        startHold();
         return;
       }
       const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
@@ -81,12 +73,6 @@ export default function App() {
 
     // phase === 'hold'
     if (seconds <= 0) {
-      if (simulated) {
-        setScore(simulatedScore());
-        setPhoto(null);
-        setScreen('score');
-        return;
-      }
       const result = finishHold();
       // If the lens looked covered/empty, give one clean retry rather than a bogus score.
       if (result.covered && attemptRef.current < 1) {
@@ -95,14 +81,14 @@ export default function App() {
         setSeconds(PREP_SECONDS);
         return;
       }
-      setScore(result.covered ? simulatedScore() : scoreFromMotion(result.motion));
+      setScore(scoreFromMotion(result.motion));
       setPhoto(result.photo);
       setScreen('score');
       return;
     }
     const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [screen, phase, seconds, cameraStatus, simulated, startHold, finishHold]);
+  }, [screen, phase, seconds, cameraStatus, startHold, finishHold]);
 
   // Auto-return to landing a few seconds after the score is shown.
   useEffect(() => {
@@ -139,12 +125,10 @@ export default function App() {
           seconds={seconds}
           videoRef={videoRef}
           cameraStatus={cameraStatus}
-          simulated={simulated}
           onRetryCamera={startCamera}
-          onSkipCamera={() => setSimulated(true)}
         />
       )}
-      {screen === 'score' && pose && <Score pose={pose} score={score} photo={photo} />}
+      {screen === 'score' && pose && <Score score={score} photo={photo} />}
     </Stage>
   );
 }
