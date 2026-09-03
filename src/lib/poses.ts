@@ -10,6 +10,13 @@ export interface Pose {
   card: string;
   /** Faint body outline overlaid on the live camera during Capture. */
   outline: string;
+  /** Optional horizontal nudge for the Capture outline (CSS length/%, e.g. '-6%').
+   *  Asymmetric poses (a raised knee, etc.) are centered by their bounding box, so
+   *  their visual center can sit off-screen-center — nudge to correct it. */
+  outlineNudgeX?: string;
+  /** Optional size multiplier for the Capture outline (default 1). Wide poses like
+   *  Warrior II fit by width and render short, so scale them up to match the others. */
+  outlineScale?: number;
 }
 
 export const POSES: Pose[] = [
@@ -20,6 +27,7 @@ export const POSES: Pose[] = [
     thumb: '/assets/thumb-tree.png',
     card: '/assets/pose-tree.png',
     outline: '/assets/outline-tree.png',
+    outlineNudgeX: '-11%', // raised knee juts left; shift to center the standing figure
   },
   {
     id: 'warrior',
@@ -28,6 +36,7 @@ export const POSES: Pose[] = [
     thumb: '/assets/thumb-warrior.png',
     card: '/assets/pose-warrior.png',
     outline: '/assets/outline-warrior.png',
+    outlineScale: 1.3, // wide pose fits by width and renders short; scale up to match
   },
   {
     id: 'chair',

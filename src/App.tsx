@@ -9,7 +9,18 @@ import { usePoseCapture } from './lib/usePoseCapture';
 import { useIdleReset } from './lib/useIdleReset';
 import { scoreFromMotion } from './lib/score';
 import { enterKiosk } from './lib/kiosk';
-import type { Pose } from './lib/poses';
+import { POSES, type Pose } from './lib/poses';
+
+/** Dev-only harness for tuning the pose outline: open
+ *  `http://localhost:5173/?preview=capture` (add `&pose=warrior` or `&pose=chair`).
+ *  Renders the Capture screen frozen, camera-free, and without the countdown so the
+ *  outline size/placement in Capture.tsx can be adjusted with live hot-reload. */
+function useCapturePreview(): Pose | null {
+  if (!import.meta.env.DEV) return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('preview') !== 'capture') return null;
+  return POSES.find((p) => p.id === params.get('pose')) ?? POSES[0];
+}
 
 type Screen = 'landing' | 'howToPlay' | 'choosePose' | 'capture' | 'score';
 type Phase = 'prep' | 'hold';
@@ -29,6 +40,7 @@ export default function App() {
   const attemptRef = useRef(0);
 
   const { videoRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold } = usePoseCapture();
+  const previewPose = useCapturePreview();
 
   const goLanding = () => {
     setScreen('landing');
@@ -96,6 +108,24 @@ export default function App() {
     const t = setTimeout(goLanding, SCORE_AUTORESET_MS);
     return () => clearTimeout(t);
   }, [screen]);
+
+  // Dev-only: render the Capture screen in isolation (frozen, no countdown) for
+  // tuning the pose outline. See useCapturePreview above for the URL.
+  if (previewPose) {
+    return (
+      <Stage backdrop={<div style={{ position: 'absolute', inset: 0, background: 'var(--ink)' }} />}>
+        <Capture
+          pose={previewPose}
+          phase="hold"
+          seconds={8}
+          videoRef={videoRef}
+          cameraStatus="ready"
+          onRetryCamera={() => {}}
+          hideCountdown
+        />
+      </Stage>
+    );
+  }
 
   // Full-bleed backdrop behind the canvas for image/camera screens, so their
   // background fills the screen instead of being boxed by letterbox bars.

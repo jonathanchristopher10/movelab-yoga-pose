@@ -10,11 +10,22 @@ interface CaptureProps {
   videoRef: RefObject<HTMLVideoElement>;
   cameraStatus: CameraStatus;
   onRetryCamera: () => void;
+  /** Dev-only: hide the countdown so the pose outline can be sized/placed in isolation. */
+  hideCountdown?: boolean;
 }
 
-export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera }: CaptureProps) {
+export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera, hideCountdown = false }: CaptureProps) {
   const cameraLive = cameraStatus === 'ready' || cameraStatus === 'requesting';
   const cameraBlocked = cameraStatus === 'denied' || cameraStatus === 'error';
+
+  // Per-pose outline tuning (see poses.ts): horizontal nudge + size multiplier.
+  const outlineTransform =
+    [
+      pose.outlineNudgeX ? `translateX(${pose.outlineNudgeX})` : '',
+      pose.outlineScale && pose.outlineScale !== 1 ? `scale(${pose.outlineScale})` : '',
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--ink)' }}>
@@ -48,7 +59,17 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
       <img
         src={pose.outline}
         alt=""
-        style={{ position: 'absolute', inset: '3% 3%', width: '94%', height: '92%', objectFit: 'contain', objectPosition: 'center', opacity: 0.9, margin: 'auto' }}
+        style={{
+          position: 'absolute',
+          inset: '3% 3%',
+          width: '70%',
+          height: '75%',
+          objectFit: 'contain',
+          objectPosition: 'center',
+          opacity: 0.9,
+          margin: 'auto',
+          transform: outlineTransform,
+        }}
       />
 
       {/* Header. */}
@@ -62,14 +83,16 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
       </div>
 
       {/* Countdown. */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24 }}>
-        {phase === 'prep' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 8 }}>
-            <Countdown mode="number" value={seconds} caption="Get ready" />
-          </div>
-        )}
-        {phase === 'hold' && <Countdown mode="bar" value={seconds} total={8} />}
-      </div>
+      {!hideCountdown && (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24 }}>
+          {phase === 'prep' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 8 }}>
+              <Countdown mode="number" value={seconds} caption="Get ready" />
+            </div>
+          )}
+          {phase === 'hold' && <Countdown mode="bar" value={seconds} total={8} />}
+        </div>
+      )}
 
       {/* Camera permission / error overlay — the booth never dead-ends. */}
       {cameraBlocked && (
