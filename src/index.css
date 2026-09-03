@@ -14,8 +14,9 @@ body {
   font-family: var(--font-body);
   color: var(--text-primary);
   /* The area around the scaled stage on displays whose aspect ratio doesn't
-     match the portrait canvas. A calm neutral so signage letterboxing is subtle. */
-  background: #DCD8CF;
+     match the portrait canvas. Match the app's warm background so the letterbox
+     is seamless on phones/tablets/signage (no visible seam beside the card). */
+  background: var(--bg-warm);
   /* Kiosk: no text selection, no long-press callout, no tap highlight. */
   -webkit-user-select: none;
   user-select: none;
