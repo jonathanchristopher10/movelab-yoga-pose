@@ -11,15 +11,17 @@ import { scoreFromMotion } from './lib/score';
 import { enterKiosk } from './lib/kiosk';
 import { POSES, type Pose } from './lib/poses';
 
-/** Dev-only harness for tuning the pose outline: open
- *  `http://localhost:5173/?preview=capture` (add `&pose=warrior` or `&pose=chair`).
- *  Renders the Capture screen frozen, camera-free, and without the countdown so the
- *  outline size/placement in Capture.tsx can be adjusted with live hot-reload. */
-function useCapturePreview(): Pose | null {
+/** Dev-only harness for tuning the Capture reference card: open
+ *  `http://localhost:5173/?preview=capture` (add `&pose=warrior|chair` and
+ *  `&phase=prep|hold`). Renders the Capture screen frozen and camera-free so the
+ *  card size/placement in Capture.tsx can be adjusted with live hot-reload. */
+function useCapturePreview(): { pose: Pose; phase: Phase } | null {
   if (!import.meta.env.DEV) return null;
   const params = new URLSearchParams(window.location.search);
   if (params.get('preview') !== 'capture') return null;
-  return POSES.find((p) => p.id === params.get('pose')) ?? POSES[0];
+  const pose = POSES.find((p) => p.id === params.get('pose')) ?? POSES[0];
+  const phase: Phase = params.get('phase') === 'prep' ? 'prep' : 'hold';
+  return { pose, phase };
 }
 
 type Screen = 'landing' | 'howToPlay' | 'choosePose' | 'capture' | 'score';
@@ -115,9 +117,9 @@ export default function App() {
     return (
       <Stage backdrop={<div style={{ position: 'absolute', inset: 0, background: 'var(--ink)' }} />}>
         <Capture
-          pose={previewPose}
-          phase="hold"
-          seconds={8}
+          pose={previewPose.pose}
+          phase={previewPose.phase}
+          seconds={previewPose.phase === 'prep' ? 3 : 8}
           videoRef={videoRef}
           cameraStatus="ready"
           onRetryCamera={() => {}}

@@ -8,6 +8,8 @@ export interface Pose {
   thumb: string;
   /** Trimmed cut-out used inside the PoseCard on Choose Pose. */
   card: string;
+  /** Tightly-trimmed pose photo for the v2 Capture reference card (fills the card). */
+  refPhoto: string;
   /** Faint body outline overlaid on the live camera during Capture. */
   outline: string;
   /** Optional horizontal nudge for the Capture outline (CSS length/%, e.g. '-6%').
@@ -26,6 +28,7 @@ export const POSES: Pose[] = [
     difficulty: 'Easy',
     thumb: '/assets/thumb-tree.png',
     card: '/assets/pose-tree.png',
+    refPhoto: '/assets/pose-tree-ref.png',
     outline: '/assets/outline-tree.png',
     outlineNudgeX: '-11%', // raised knee juts left; shift to center the standing figure
   },
@@ -35,6 +38,7 @@ export const POSES: Pose[] = [
     difficulty: 'Medium',
     thumb: '/assets/thumb-warrior.png',
     card: '/assets/pose-warrior.png',
+    refPhoto: '/assets/pose-warrior-ref.png',
     outline: '/assets/outline-warrior.png',
     outlineScale: 1.3, // wide pose fits by width and renders short; scale up to match
   },
@@ -44,6 +48,7 @@ export const POSES: Pose[] = [
     difficulty: 'Hard',
     thumb: '/assets/thumb-chair.png',
     card: '/assets/pose-chair.png',
+    refPhoto: '/assets/pose-chair-ref.png',
     outline: '/assets/outline-chair.png',
   },
 ];

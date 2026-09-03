@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { Countdown } from '../components/Countdown';
 import type { CameraStatus } from '../lib/usePoseCapture';
 import type { Pose } from '../lib/poses';
@@ -10,26 +10,25 @@ interface CaptureProps {
   videoRef: RefObject<HTMLVideoElement>;
   cameraStatus: CameraStatus;
   onRetryCamera: () => void;
-  /** Dev-only: hide the countdown so the pose outline can be sized/placed in isolation. */
+  /** Dev-only: hide the countdown so the reference card can be sized/placed in isolation. */
   hideCountdown?: boolean;
 }
+
+// The reference card: big + centered while getting into position (prep), then it
+// shrinks into the top corner during the hold so the live camera (the participant)
+// is the focus. Both layouts are percentages of the portrait canvas; the card
+// transitions smoothly between them.
+const CARD_PREP: CSSProperties = { top: '15%', left: '16%', width: '68%', height: '62%' };
+const CARD_HOLD: CSSProperties = { top: '8%', left: '60%', width: '36%', height: '30%' };
 
 export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera, hideCountdown = false }: CaptureProps) {
   const cameraLive = cameraStatus === 'ready' || cameraStatus === 'requesting';
   const cameraBlocked = cameraStatus === 'denied' || cameraStatus === 'error';
-
-  // Per-pose outline tuning (see poses.ts): horizontal nudge + size multiplier.
-  const outlineTransform =
-    [
-      pose.outlineNudgeX ? `translateX(${pose.outlineNudgeX})` : '',
-      pose.outlineScale && pose.outlineScale !== 1 ? `scale(${pose.outlineScale})` : '',
-    ]
-      .filter(Boolean)
-      .join(' ') || undefined;
+  const layout = phase === 'prep' ? CARD_PREP : CARD_HOLD;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--ink)' }}>
-      {/* Live camera (mirrored for a selfie feel). */}
+      {/* Live camera (mirrored for a selfie feel) — the participant is the focus. */}
       <video
         ref={videoRef}
         autoPlay
@@ -46,31 +45,33 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
           transition: 'opacity var(--duration-slow) var(--ease-standard)',
         }}
       />
-      {/* Legibility scrim. */}
+      {/* Light legibility scrim (top + bottom) for the header and countdown. */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background:
-            'linear-gradient(180deg,rgba(17,17,17,0.72) 0%,rgba(17,17,17,0.18) 28%,rgba(17,17,17,0.18) 68%,rgba(17,17,17,0.85) 100%)',
+          background: 'linear-gradient(180deg,rgba(17,17,17,0.72) 0%,rgba(17,17,17,0.12) 22%,rgba(17,17,17,0.12) 74%,rgba(17,17,17,0.85) 100%)',
         }}
       />
-      {/* Pose outline positioning guide. */}
-      <img
-        src={pose.outline}
-        alt=""
+
+      {/* Reference pose card — light so the black-activewear cutout stays clearly
+          visible on signage against the dark camera view. */}
+      <div
         style={{
           position: 'absolute',
-          inset: '3% 3%',
-          width: '70%',
-          height: '75%',
-          objectFit: 'contain',
-          objectPosition: 'center',
-          opacity: 0.9,
-          margin: 'auto',
-          transform: outlineTransform,
+          ...layout,
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-l)',
+          boxShadow: 'var(--shadow-float)',
+          padding: 10,
+          boxSizing: 'border-box',
+          transition: 'top 600ms var(--ease-standard), left 600ms var(--ease-standard), width 600ms var(--ease-standard), height 600ms var(--ease-standard)',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <img src={pose.refPhoto} alt={pose.name} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }} />
+      </div>
 
       {/* Header. */}
       <div style={{ position: 'relative', padding: '24px 24px 0', textAlign: 'center' }}>
@@ -78,7 +79,7 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
           {pose.name}
         </div>
         <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--body-m)', color: 'var(--text-on-dark-muted)', marginTop: 2 }}>
-          Hold steady
+          {phase === 'prep' ? 'Get into position' : 'Hold steady'}
         </div>
       </div>
 
@@ -94,7 +95,7 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
         </div>
       )}
 
-      {/* Camera permission / error overlay — the booth never dead-ends. */}
+      {/* Camera permission / error overlay — camera is required to play. */}
       {cameraBlocked && (
         <div
           style={{
