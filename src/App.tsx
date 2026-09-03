@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stage } from './components/Stage';
-import { Landing } from './screens/Landing';
+import { Landing, LandingBackdrop } from './screens/Landing';
 import { HowToPlay } from './screens/HowToPlay';
 import { ChoosePose } from './screens/ChoosePose';
 import { Capture } from './screens/Capture';
@@ -111,8 +111,17 @@ export default function App() {
     return () => clearTimeout(t);
   }, [screen]);
 
+  // Full-bleed backdrop behind the canvas for image/camera screens, so their
+  // background fills the screen instead of being boxed by letterbox bars.
+  const backdrop =
+    screen === 'landing' ? (
+      <LandingBackdrop />
+    ) : screen === 'capture' ? (
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--ink)' }} />
+    ) : undefined;
+
   return (
-    <Stage>
+    <Stage backdrop={backdrop}>
       {screen === 'landing' && (
         <Landing
           onStart={() => {

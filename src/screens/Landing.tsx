@@ -1,18 +1,28 @@
-export function Landing({ onStart }: { onStart: () => void }) {
+/** Full-bleed Landing backdrop (studio photo + fade to the warm background).
+ *  Rendered by the Stage across the whole viewport so it never looks "boxed in"
+ *  by letterbox bars — the photo fills the screen on any phone/tablet/signage. */
+export function LandingBackdrop() {
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       <img
         src="/assets/background-landing.png"
         alt=""
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
       />
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg,rgba(244,242,238,0.15) 0%,rgba(244,242,238,0.75) 78%,rgba(244,242,238,0.95) 100%)',
+          background: 'linear-gradient(180deg,rgba(227,226,222,0.10) 0%,rgba(227,226,222,0.72) 78%,rgba(227,226,222,0.96) 100%)',
         }}
       />
+    </div>
+  );
+}
+
+export function Landing({ onStart }: { onStart: () => void }) {
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', padding: '32px 28px 0', display: 'flex', justifyContent: 'center' }}>
         <img src="/assets/movelab-wordmark.png" alt="MoveLab" style={{ height: 32, width: 146 }} />
       </div>
