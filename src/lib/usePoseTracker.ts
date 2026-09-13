@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FilesetResolver, PoseLandmarker, type NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { FilesetResolver, PoseLandmarker, type MPMask } from '@mediapipe/tasks-vision';
 import { POSES, type Pose } from './poses';
 import { poseAngles, angleMatch, landmarksPresent } from './poseMatch';
 
@@ -20,11 +20,13 @@ export interface HoldResult {
 const WASM_PATH = '/mediapipe/wasm';
 const MODEL_PATH = '/models/pose_landmarker_lite.task';
 
-const SKELETON_COLOR = '#A9B99A'; // sage
-const JOINT_COLOR = '#FFFFFF';
+// Sage glow (matches --sage accent). RGB for the silhouette fill.
+const GLOW_RGB = [169, 185, 154] as const;
+const MASK_THRESHOLD = 0.5; // person-confidence cutoff
 
 /** Owns the webcam + MediaPipe pose tracking for the Capture screen: draws the
- *  live skeleton overlay and scores the held pose against the selected target. */
+ *  person's glowing silhouette (segmentation mask) and scores the held pose
+ *  against the selected target (joint angles). */
 export function usePoseTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +49,7 @@ export function usePoseTracker() {
   const bestMatchRef = useRef(-1);
   const bestPhotoRef = useRef<string | null>(null);
   const photoCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   /** Load MediaPipe once and derive each pose's target angles from its ref photo. */
   const ensureLoaded = useCallback(async () => {
@@ -76,6 +79,7 @@ export function usePoseTracker() {
       baseOptions: { modelAssetPath: MODEL_PATH, delegate: 'GPU' },
       runningMode: 'VIDEO',
       numPoses: 1,
+      outputSegmentationMasks: true,
     });
   }, []);
 
@@ -133,7 +137,9 @@ export function usePoseTracker() {
 
     const result = landmarker.detectForVideo(video, performance.now());
     const lm = result.landmarks?.[0];
-    drawSkeleton(lm);
+    const mask = result.segmentationMasks?.[0];
+    drawSilhouette(mask);
+    mask?.close();
 
     if (scoringRef.current) {
       frameCountRef.current += 1;
@@ -151,7 +157,9 @@ export function usePoseTracker() {
     }
   }, []);
 
-  const drawSkeleton = (lm: NormalizedLandmark[] | undefined) => {
+  /** Render the person's segmentation mask as a soft sage glow, mapped through the
+   *  same object-fit:cover transform the video uses (canvas is CSS-mirrored to match). */
+  const drawSilhouette = (mask: MPMask | undefined) => {
     const canvas = overlayRef.current;
     const video = videoRef.current;
     const ctx = canvas?.getContext('2d');
@@ -161,35 +169,47 @@ export function usePoseTracker() {
     if (canvas.width !== cw) canvas.width = cw;
     if (canvas.height !== ch) canvas.height = ch;
     ctx.clearRect(0, 0, cw, ch);
-    if (!lm || !video.videoWidth) return;
+    if (!mask || !video.videoWidth) return;
 
-    // Map normalized coords through the same object-fit:cover transform the video uses.
+    const mw = mask.width;
+    const mh = mask.height;
+    const conf = mask.getAsFloat32Array();
+
+    // Build the silhouette at mask resolution on an offscreen canvas.
+    const off = (maskCanvasRef.current ??= document.createElement('canvas'));
+    off.width = mw;
+    off.height = mh;
+    const octx = off.getContext('2d');
+    if (!octx) return;
+    const img = octx.createImageData(mw, mh);
+    const d = img.data;
+    for (let i = 0, p = 0; i < conf.length; i++, p += 4) {
+      if (conf[i] > MASK_THRESHOLD) {
+        d[p] = GLOW_RGB[0];
+        d[p + 1] = GLOW_RGB[1];
+        d[p + 2] = GLOW_RGB[2];
+        d[p + 3] = Math.min(255, Math.round(conf[i] * 255));
+      }
+    }
+    octx.putImageData(img, 0, 0);
+
+    // Cover-map the mask onto the displayed video area.
     const scale = Math.max(cw / video.videoWidth, ch / video.videoHeight);
     const dw = video.videoWidth * scale;
     const dh = video.videoHeight * scale;
     const ox = (cw - dw) / 2;
     const oy = (ch - dh) / 2;
-    const px = (p: NormalizedLandmark) => ox + p.x * dw;
-    const py = (p: NormalizedLandmark) => oy + p.y * dh;
 
-    ctx.strokeStyle = SKELETON_COLOR;
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    for (const { start, end } of PoseLandmarker.POSE_CONNECTIONS) {
-      const a = lm[start];
-      const b = lm[end];
-      if (!a || !b) continue;
-      ctx.beginPath();
-      ctx.moveTo(px(a), py(a));
-      ctx.lineTo(px(b), py(b));
-      ctx.stroke();
-    }
-    ctx.fillStyle = JOINT_COLOR;
-    for (const p of lm) {
-      ctx.beginPath();
-      ctx.arc(px(p), py(p), 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    // Outer glow (soft, wide blur) then a tighter inner pass for body.
+    ctx.globalAlpha = 0.9;
+    ctx.filter = 'blur(14px)';
+    ctx.drawImage(off, ox, oy, dw, dh);
+    ctx.filter = 'blur(4px)';
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(off, ox, oy, dw, dh);
+    ctx.restore();
   };
 
   const grabPhoto = (video: HTMLVideoElement): string | null => {
