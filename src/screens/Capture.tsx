@@ -1,6 +1,6 @@
 import type { CSSProperties, RefObject } from 'react';
 import { Countdown } from '../components/Countdown';
-import type { CameraStatus } from '../lib/usePoseCapture';
+import type { CameraStatus } from '../lib/usePoseTracker';
 import type { Pose } from '../lib/poses';
 
 interface CaptureProps {
@@ -8,6 +8,8 @@ interface CaptureProps {
   phase: 'prep' | 'hold';
   seconds: number;
   videoRef: RefObject<HTMLVideoElement>;
+  /** Canvas overlaid on the camera where the live pose skeleton is drawn. */
+  overlayRef?: RefObject<HTMLCanvasElement>;
   cameraStatus: CameraStatus;
   onRetryCamera: () => void;
   /** Dev-only: hide the countdown so the reference card can be sized/placed in isolation. */
@@ -21,9 +23,10 @@ interface CaptureProps {
 const CARD_PREP: CSSProperties = { top: '15%', left: '16%', width: '68%', height: '62%' };
 const CARD_HOLD: CSSProperties = { top: '5%', left: '69%', width: '27%', height: '23%' };
 
-export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera, hideCountdown = false }: CaptureProps) {
+export function Capture({ pose, phase, seconds, videoRef, overlayRef, cameraStatus, onRetryCamera, hideCountdown = false }: CaptureProps) {
   const cameraLive = cameraStatus === 'ready' || cameraStatus === 'requesting';
   const cameraBlocked = cameraStatus === 'denied' || cameraStatus === 'error';
+  const cameraStarting = cameraStatus === 'loading' || cameraStatus === 'requesting';
   const layout = phase === 'prep' ? CARD_PREP : CARD_HOLD;
 
   return (
@@ -53,6 +56,29 @@ export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryC
           background: 'linear-gradient(180deg,rgba(17,17,17,0.72) 0%,rgba(17,17,17,0.12) 22%,rgba(17,17,17,0.12) 74%,rgba(17,17,17,0.85) 100%)',
         }}
       />
+
+      {/* Live pose skeleton, drawn on the camera. Mirrored to match the selfie video. */}
+      <canvas
+        ref={overlayRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'scaleX(-1)', pointerEvents: 'none' }}
+      />
+
+      {cameraStarting && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-body)',
+            fontSize: 15,
+            color: 'var(--text-on-dark-muted)',
+          }}
+        >
+          Starting camera…
+        </div>
+      )}
 
       {/* Reference pose card — light so the black-activewear cutout stays clearly
           visible on signage against the dark camera view. */}

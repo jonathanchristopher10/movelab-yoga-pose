@@ -5,9 +5,8 @@ import { HowToPlay } from './screens/HowToPlay';
 import { ChoosePose } from './screens/ChoosePose';
 import { Capture } from './screens/Capture';
 import { Score } from './screens/Score';
-import { usePoseCapture } from './lib/usePoseCapture';
+import { usePoseTracker } from './lib/usePoseTracker';
 import { useIdleReset } from './lib/useIdleReset';
-import { scoreFromMotion } from './lib/score';
 import { enterKiosk } from './lib/kiosk';
 import { POSES, type Pose } from './lib/poses';
 
@@ -41,7 +40,8 @@ export default function App() {
   const [photo, setPhoto] = useState<string | null>(null);
   const attemptRef = useRef(0);
 
-  const { videoRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold } = usePoseCapture();
+  const { videoRef, overlayRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold, setPose: setTargetPose } =
+    usePoseTracker();
   const previewPose = useCapturePreview();
 
   const goLanding = () => {
@@ -57,6 +57,7 @@ export default function App() {
   const startCapture = (p: Pose) => {
     attemptRef.current = 0;
     setPose(p);
+    setTargetPose(p);
     setPhase('prep');
     setSeconds(PREP_SECONDS);
     setScreen('capture');
@@ -95,7 +96,7 @@ export default function App() {
         setSeconds(PREP_SECONDS);
         return;
       }
-      setScore(scoreFromMotion(result.motion));
+      setScore(result.score);
       setPhoto(result.photo);
       setScreen('score');
       return;
@@ -156,6 +157,7 @@ export default function App() {
           phase={phase}
           seconds={seconds}
           videoRef={videoRef}
+          overlayRef={overlayRef}
           cameraStatus={cameraStatus}
           onRetryCamera={startCamera}
         />
