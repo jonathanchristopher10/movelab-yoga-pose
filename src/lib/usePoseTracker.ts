@@ -20,9 +20,10 @@ export interface HoldResult {
 const WASM_PATH = '/mediapipe/wasm';
 const MODEL_PATH = '/models/pose_landmarker_lite.task';
 
-// Sage glow (matches --sage accent). RGB for the silhouette fill.
-const GLOW_RGB = [169, 185, 154] as const;
+// Sage (matches --sage accent). RGB for the body outline.
+const OUTLINE_RGB = [169, 185, 154] as const;
 const MASK_THRESHOLD = 0.5; // person-confidence cutoff
+const EDGE_BLUR = 3; // ring thickness at mask resolution (px); larger = thicker outline
 
 /** Owns the webcam + MediaPipe pose tracking for the Capture screen: draws the
  *  person's glowing silhouette (segmentation mask) and scores the held pose
@@ -50,6 +51,7 @@ export function usePoseTracker() {
   const bestPhotoRef = useRef<string | null>(null);
   const photoCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ringCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   /** Load MediaPipe once and derive each pose's target angles from its ref photo. */
   const ensureLoaded = useCallback(async () => {
@@ -138,7 +140,7 @@ export function usePoseTracker() {
     const result = landmarker.detectForVideo(video, performance.now());
     const lm = result.landmarks?.[0];
     const mask = result.segmentationMasks?.[0];
-    drawSilhouette(mask);
+    drawOutline(mask);
     mask?.close();
 
     if (scoringRef.current) {
@@ -157,9 +159,11 @@ export function usePoseTracker() {
     }
   }, []);
 
-  /** Render the person's segmentation mask as a soft sage glow, mapped through the
-   *  same object-fit:cover transform the video uses (canvas is CSS-mirrored to match). */
-  const drawSilhouette = (mask: MPMask | undefined) => {
+  /** Trace the person's segmentation mask into a glowing sage OUTLINE (interior
+   *  transparent, so the person stays fully visible to pose). The ring is made by
+   *  blurring the filled mask and punching out the sharp mask, leaving only the
+   *  edge band. Mapped through the same cover/mirror transform as the camera. */
+  const drawOutline = (mask: MPMask | undefined) => {
     const canvas = overlayRef.current;
     const video = videoRef.current;
     const ctx = canvas?.getContext('2d');
@@ -175,25 +179,40 @@ export function usePoseTracker() {
     const mh = mask.height;
     const conf = mask.getAsFloat32Array();
 
-    // Build the silhouette at mask resolution on an offscreen canvas.
-    const off = (maskCanvasRef.current ??= document.createElement('canvas'));
-    off.width = mw;
-    off.height = mh;
-    const octx = off.getContext('2d');
-    if (!octx) return;
-    const img = octx.createImageData(mw, mh);
+    // 1) Solid (hard-edged) sage silhouette at mask resolution.
+    const solid = (maskCanvasRef.current ??= document.createElement('canvas'));
+    solid.width = mw;
+    solid.height = mh;
+    const sctx = solid.getContext('2d');
+    if (!sctx) return;
+    const img = sctx.createImageData(mw, mh);
     const d = img.data;
     for (let i = 0, p = 0; i < conf.length; i++, p += 4) {
       if (conf[i] > MASK_THRESHOLD) {
-        d[p] = GLOW_RGB[0];
-        d[p + 1] = GLOW_RGB[1];
-        d[p + 2] = GLOW_RGB[2];
-        d[p + 3] = Math.min(255, Math.round(conf[i] * 255));
+        d[p] = OUTLINE_RGB[0];
+        d[p + 1] = OUTLINE_RGB[1];
+        d[p + 2] = OUTLINE_RGB[2];
+        d[p + 3] = 255;
       }
     }
-    octx.putImageData(img, 0, 0);
+    sctx.putImageData(img, 0, 0);
 
-    // Cover-map the mask onto the displayed video area.
+    // 2) Ring = blurred silhouette MINUS the sharp silhouette → just the edge band.
+    const ring = (ringCanvasRef.current ??= document.createElement('canvas'));
+    ring.width = mw;
+    ring.height = mh;
+    const rctx = ring.getContext('2d');
+    if (!rctx) return;
+    rctx.clearRect(0, 0, mw, mh);
+    rctx.globalCompositeOperation = 'source-over';
+    rctx.filter = `blur(${EDGE_BLUR}px)`;
+    rctx.drawImage(solid, 0, 0);
+    rctx.filter = 'none';
+    rctx.globalCompositeOperation = 'destination-out';
+    rctx.drawImage(solid, 0, 0);
+    rctx.globalCompositeOperation = 'source-over';
+
+    // 3) Cover-map the ring onto the displayed video area, with a soft glow.
     const scale = Math.max(cw / video.videoWidth, ch / video.videoHeight);
     const dw = video.videoWidth * scale;
     const dh = video.videoHeight * scale;
@@ -202,13 +221,12 @@ export function usePoseTracker() {
 
     ctx.save();
     ctx.imageSmoothingEnabled = true;
-    // Outer glow (soft, wide blur) then a tighter inner pass for body.
-    ctx.globalAlpha = 0.9;
-    ctx.filter = 'blur(14px)';
-    ctx.drawImage(off, ox, oy, dw, dh);
-    ctx.filter = 'blur(4px)';
-    ctx.globalAlpha = 0.45;
-    ctx.drawImage(off, ox, oy, dw, dh);
+    ctx.globalAlpha = 0.4; // outer glow
+    ctx.filter = 'blur(8px)';
+    ctx.drawImage(ring, ox, oy, dw, dh);
+    ctx.globalAlpha = 0.95; // crisp line
+    ctx.filter = 'blur(1px)';
+    ctx.drawImage(ring, ox, oy, dw, dh);
     ctx.restore();
   };
 
