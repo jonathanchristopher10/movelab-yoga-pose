@@ -19,7 +19,7 @@ interface CaptureProps {
 // is the focus. Both layouts are percentages of the portrait canvas; the card
 // transitions smoothly between them.
 const CARD_PREP: CSSProperties = { top: '15%', left: '16%', width: '68%', height: '62%' };
-const CARD_HOLD: CSSProperties = { top: '8%', left: '60%', width: '36%', height: '30%' };
+const CARD_HOLD: CSSProperties = { top: '5%', left: '69%', width: '27%', height: '23%' };
 
 export function Capture({ pose, phase, seconds, videoRef, cameraStatus, onRetryCamera, hideCountdown = false }: CaptureProps) {
   const cameraLive = cameraStatus === 'ready' || cameraStatus === 'requesting';
