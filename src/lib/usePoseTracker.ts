@@ -22,8 +22,8 @@ const MODEL_PATH = '/models/pose_landmarker_lite.task';
 
 // Sage (matches --sage accent). RGB for the body outline.
 const OUTLINE_RGB = [169, 185, 154] as const;
-const MASK_THRESHOLD = 0.5; // person-confidence cutoff
-const EDGE_BLUR = 7; // ring thickness at mask resolution (px); larger = thicker outline
+const MASK_THRESHOLD = 0.7; // person-confidence cutoff
+const EDGE_BLUR = 10; // ring thickness at mask resolution (px); larger = thicker outline
 
 /** Owns the webcam + MediaPipe pose tracking for the Capture screen: draws the
  *  person's glowing silhouette (segmentation mask) and scores the held pose

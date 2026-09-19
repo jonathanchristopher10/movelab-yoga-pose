@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Stage } from './components/Stage';
 import { Landing, LandingBackdrop } from './screens/Landing';
 import { HowToPlay } from './screens/HowToPlay';
@@ -38,7 +38,6 @@ export default function App() {
   const [seconds, setSeconds] = useState(PREP_SECONDS);
   const [score, setScore] = useState(0);
   const [photo, setPhoto] = useState<string | null>(null);
-  const attemptRef = useRef(0);
 
   const { videoRef, overlayRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold, setPose: setTargetPose } =
     usePoseTracker();
@@ -55,7 +54,6 @@ export default function App() {
   useIdleReset(goLanding, IDLE_RESET_MS, screen, screen !== 'landing');
 
   const startCapture = (p: Pose) => {
-    attemptRef.current = 0;
     setPose(p);
     setTargetPose(p);
     setPhase('prep');
@@ -88,14 +86,9 @@ export default function App() {
 
     // phase === 'hold'
     if (seconds <= 0) {
+      // Always go straight to the score when the hold ends — never replay the
+      // sequence (a spotty detection must not cause a confusing double-play).
       const result = finishHold();
-      // If the lens looked covered/empty, give one clean retry rather than a bogus score.
-      if (result.covered && attemptRef.current < 1) {
-        attemptRef.current += 1;
-        setPhase('prep');
-        setSeconds(PREP_SECONDS);
-        return;
-      }
       setScore(result.score);
       setPhoto(result.photo);
       setScreen('score');
