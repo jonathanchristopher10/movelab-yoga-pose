@@ -23,7 +23,7 @@ const MODEL_PATH = '/models/pose_landmarker_lite.task';
 // Sage (matches --sage accent). RGB for the body outline.
 const OUTLINE_RGB = [169, 185, 154] as const;
 const MASK_THRESHOLD = 0.5; // person-confidence cutoff
-const EDGE_BLUR = 5; // ring thickness at mask resolution (px); larger = thicker outline
+const EDGE_BLUR = 7; // ring thickness at mask resolution (px); larger = thicker outline
 
 /** Owns the webcam + MediaPipe pose tracking for the Capture screen: draws the
  *  person's glowing silhouette (segmentation mask) and scores the held pose
@@ -221,18 +221,14 @@ export function usePoseTracker() {
 
     ctx.save();
     ctx.imageSmoothingEnabled = true;
-    // Additive passes → the overlapping line builds up brightness and pops.
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.6; // wide soft glow
-    ctx.filter = 'blur(16px)';
+    // Glow amount is set by this halo pass — raise blur/alpha for more glow, lower
+    // for less. Line thickness is EDGE_BLUR (independent of glow).
+    ctx.globalAlpha = 0.22; // subtle halo
+    ctx.filter = 'blur(6px)';
     ctx.drawImage(ring, ox, oy, dw, dh);
-    ctx.globalAlpha = 0.95; // mid body
-    ctx.filter = 'blur(5px)';
+    ctx.globalAlpha = 0.95; // crisp line
+    ctx.filter = 'blur(0.5px)';
     ctx.drawImage(ring, ox, oy, dw, dh);
-    ctx.globalAlpha = 1; // crisp bold core
-    ctx.filter = 'blur(1px)';
-    ctx.drawImage(ring, ox, oy, dw, dh);
-    ctx.drawImage(ring, ox, oy, dw, dh); // second core pass for extra punch
     ctx.restore();
   };
 
@@ -274,7 +270,9 @@ export function usePoseTracker() {
     const samples = matchCountRef.current;
     const score = samples > 0 ? Math.round(matchSumRef.current / samples) : 0;
     const covered = frameCountRef.current === 0 || presentCountRef.current < frameCountRef.current * 0.2;
-    const photo = bestPhotoRef.current ?? (videoRef.current ? grabPhoto(videoRef.current) : null);
+    // Snap the final held pose (the frame at the moment the countdown ends), falling
+    // back to the best-matching mid-hold frame only if the live frame isn't available.
+    const photo = (videoRef.current ? grabPhoto(videoRef.current) : null) ?? bestPhotoRef.current;
     return { score, photo, samples, covered };
   }, []);
 
