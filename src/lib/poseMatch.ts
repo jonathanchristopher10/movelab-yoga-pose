@@ -24,8 +24,11 @@ const JOINTS: ReadonlyArray<readonly [number, number, number]> = [
   [IDX.RHIP, IDX.RKNE, IDX.RANK], // right knee
 ];
 
-/** Torso + leg points that must be visible for a pose to be "detected". */
-const PRESENCE_KEYS = [IDX.LSHO, IDX.RSHO, IDX.LHIP, IDX.RHIP, IDX.LKNE, IDX.RKNE];
+/** Torso points that indicate a person is present. Deliberately NOT the knees:
+ *  in side-on (Warrior) or bent (Chair) poses the knees have low confidence, which
+ *  would falsely read as "no person" and trigger a retry. Shoulders + hips are
+ *  reliably visible in every pose. */
+const PRESENCE_KEYS = [IDX.LSHO, IDX.RSHO, IDX.LHIP, IDX.RHIP];
 
 function angleAt(a: NormalizedLandmark, b: NormalizedLandmark, c: NormalizedLandmark): number {
   const abx = a.x - b.x;
@@ -45,7 +48,7 @@ export function poseAngles(lm: NormalizedLandmark[]): number[] {
 }
 
 /** Are the key body points present and confident enough to score? */
-export function landmarksPresent(lm: NormalizedLandmark[] | undefined, minVis = 0.5): boolean {
+export function landmarksPresent(lm: NormalizedLandmark[] | undefined, minVis = 0.3): boolean {
   if (!lm || lm.length < 29) return false;
   return PRESENCE_KEYS.every((i) => lm[i] && (lm[i].visibility === undefined || lm[i].visibility >= minVis));
 }

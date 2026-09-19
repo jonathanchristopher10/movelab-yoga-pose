@@ -23,7 +23,7 @@ const MODEL_PATH = '/models/pose_landmarker_lite.task';
 // Sage (matches --sage accent). RGB for the body outline.
 const OUTLINE_RGB = [169, 185, 154] as const;
 const MASK_THRESHOLD = 0.5; // person-confidence cutoff
-const EDGE_BLUR = 3; // ring thickness at mask resolution (px); larger = thicker outline
+const EDGE_BLUR = 5; // ring thickness at mask resolution (px); larger = thicker outline
 
 /** Owns the webcam + MediaPipe pose tracking for the Capture screen: draws the
  *  person's glowing silhouette (segmentation mask) and scores the held pose
@@ -221,12 +221,18 @@ export function usePoseTracker() {
 
     ctx.save();
     ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = 0.4; // outer glow
-    ctx.filter = 'blur(8px)';
+    // Additive passes → the overlapping line builds up brightness and pops.
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.6; // wide soft glow
+    ctx.filter = 'blur(16px)';
     ctx.drawImage(ring, ox, oy, dw, dh);
-    ctx.globalAlpha = 0.95; // crisp line
+    ctx.globalAlpha = 0.95; // mid body
+    ctx.filter = 'blur(5px)';
+    ctx.drawImage(ring, ox, oy, dw, dh);
+    ctx.globalAlpha = 1; // crisp bold core
     ctx.filter = 'blur(1px)';
     ctx.drawImage(ring, ox, oy, dw, dh);
+    ctx.drawImage(ring, ox, oy, dw, dh); // second core pass for extra punch
     ctx.restore();
   };
 
@@ -267,7 +273,7 @@ export function usePoseTracker() {
     scoringRef.current = false;
     const samples = matchCountRef.current;
     const score = samples > 0 ? Math.round(matchSumRef.current / samples) : 0;
-    const covered = frameCountRef.current === 0 || presentCountRef.current < frameCountRef.current * 0.4;
+    const covered = frameCountRef.current === 0 || presentCountRef.current < frameCountRef.current * 0.2;
     const photo = bestPhotoRef.current ?? (videoRef.current ? grabPhoto(videoRef.current) : null);
     return { score, photo, samples, covered };
   }, []);
