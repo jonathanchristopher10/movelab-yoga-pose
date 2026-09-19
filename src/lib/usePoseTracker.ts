@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FilesetResolver, PoseLandmarker, type MPMask } from '@mediapipe/tasks-vision';
+import { FilesetResolver, PoseLandmarker, type MPMask, type NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { POSES, type Pose } from './poses';
 import { poseAngles, angleMatch, landmarksPresent } from './poseMatch';
 
 export type CameraStatus = 'idle' | 'loading' | 'requesting' | 'ready' | 'denied' | 'error';
+
+/** Which live overlay to draw over the camera. */
+export type OverlayMode = 'outline' | 'skeleton';
 
 export interface HoldResult {
   /** Pose-match score 0..100 (how well the held pose matched the target). */
@@ -22,6 +25,8 @@ const MODEL_PATH = '/models/pose_landmarker_lite.task';
 
 // Sage (matches --sage accent). RGB for the body outline.
 const OUTLINE_RGB = [169, 185, 154] as const;
+const SAGE = 'rgb(169,185,154)';
+const JOINT_COLOR = '#FFFFFF';
 const MASK_THRESHOLD = 0.7; // person-confidence cutoff
 const EDGE_BLUR = 10; // ring thickness at mask resolution (px); larger = thicker outline
 
@@ -37,6 +42,7 @@ export function usePoseTracker() {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const targetAnglesRef = useRef<Record<string, number[]>>({});
   const poseIdRef = useRef<Pose['id']>('tree');
+  const modeRef = useRef<OverlayMode>('outline');
 
   const rafRef = useRef(0);
   const lastVideoTimeRef = useRef(-1);
@@ -87,6 +93,10 @@ export function usePoseTracker() {
 
   const setPose = useCallback((pose: Pose) => {
     poseIdRef.current = pose.id;
+  }, []);
+
+  const setOverlayMode = useCallback((mode: OverlayMode) => {
+    modeRef.current = mode;
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -140,7 +150,8 @@ export function usePoseTracker() {
     const result = landmarker.detectForVideo(video, performance.now());
     const lm = result.landmarks?.[0];
     const mask = result.segmentationMasks?.[0];
-    drawOutline(mask);
+    if (modeRef.current === 'skeleton') drawSkeleton(lm);
+    else drawOutline(mask);
     mask?.close();
 
     if (scoringRef.current) {
@@ -232,6 +243,48 @@ export function usePoseTracker() {
     ctx.restore();
   };
 
+  /** Classic "stick man": connect the landmarks with sage lines + white joints,
+   *  mapped through the same cover/mirror transform as the camera. */
+  const drawSkeleton = (lm: NormalizedLandmark[] | undefined) => {
+    const canvas = overlayRef.current;
+    const video = videoRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !video || !ctx) return;
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (canvas.width !== cw) canvas.width = cw;
+    if (canvas.height !== ch) canvas.height = ch;
+    ctx.clearRect(0, 0, cw, ch);
+    if (!lm || !video.videoWidth) return;
+
+    const scale = Math.max(cw / video.videoWidth, ch / video.videoHeight);
+    const dw = video.videoWidth * scale;
+    const dh = video.videoHeight * scale;
+    const ox = (cw - dw) / 2;
+    const oy = (ch - dh) / 2;
+    const px = (p: NormalizedLandmark) => ox + p.x * dw;
+    const py = (p: NormalizedLandmark) => oy + p.y * dh;
+
+    ctx.strokeStyle = SAGE;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    for (const { start, end } of PoseLandmarker.POSE_CONNECTIONS) {
+      const a = lm[start];
+      const b = lm[end];
+      if (!a || !b) continue;
+      ctx.beginPath();
+      ctx.moveTo(px(a), py(a));
+      ctx.lineTo(px(b), py(b));
+      ctx.stroke();
+    }
+    ctx.fillStyle = JOINT_COLOR;
+    for (const p of lm) {
+      ctx.beginPath();
+      ctx.arc(px(p), py(p), 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
   const grabPhoto = (video: HTMLVideoElement): string | null => {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
@@ -285,7 +338,7 @@ export function usePoseTracker() {
     [stopCamera],
   );
 
-  return { videoRef, overlayRef, status, startCamera, stopCamera, startHold, finishHold, setPose };
+  return { videoRef, overlayRef, status, startCamera, stopCamera, startHold, finishHold, setPose, setOverlayMode };
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

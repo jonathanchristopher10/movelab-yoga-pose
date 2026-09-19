@@ -5,7 +5,7 @@ import { HowToPlay } from './screens/HowToPlay';
 import { ChoosePose } from './screens/ChoosePose';
 import { Capture } from './screens/Capture';
 import { Score } from './screens/Score';
-import { usePoseTracker } from './lib/usePoseTracker';
+import { usePoseTracker, type OverlayMode } from './lib/usePoseTracker';
 import { useIdleReset } from './lib/useIdleReset';
 import { enterKiosk } from './lib/kiosk';
 import { POSES, type Pose } from './lib/poses';
@@ -39,9 +39,37 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [photo, setPhoto] = useState<string | null>(null);
 
-  const { videoRef, overlayRef, status: cameraStatus, startCamera, stopCamera, startHold, finishHold, setPose: setTargetPose } =
-    usePoseTracker();
+  const {
+    videoRef,
+    overlayRef,
+    status: cameraStatus,
+    startCamera,
+    stopCamera,
+    startHold,
+    finishHold,
+    setPose: setTargetPose,
+    setOverlayMode,
+  } = usePoseTracker();
   const previewPose = useCapturePreview();
+
+  // Overlay style (outline vs. stick-man skeleton), chosen on the landing and
+  // remembered so it survives auto-resets. Applied to the live tracker.
+  const [overlayMode, setOverlayModeState] = useState<OverlayMode>(() => {
+    try {
+      return localStorage.getItem('movelab.overlay') === 'skeleton' ? 'skeleton' : 'outline';
+    } catch {
+      return 'outline';
+    }
+  });
+  useEffect(() => setOverlayMode(overlayMode), [overlayMode, setOverlayMode]);
+  const changeOverlayMode = (mode: OverlayMode) => {
+    setOverlayModeState(mode);
+    try {
+      localStorage.setItem('movelab.overlay', mode);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const goLanding = () => {
     setScreen('landing');
@@ -136,6 +164,8 @@ export default function App() {
     <Stage backdrop={backdrop}>
       {screen === 'landing' && (
         <Landing
+          overlayMode={overlayMode}
+          onOverlayModeChange={changeOverlayMode}
           onStart={() => {
             void enterKiosk();
             setScreen('howToPlay');
