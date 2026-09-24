@@ -56,9 +56,9 @@ export default function App() {
   // remembered so it survives auto-resets. Applied to the live tracker.
   const [overlayMode, setOverlayModeState] = useState<OverlayMode>(() => {
     try {
-      return localStorage.getItem('movelab.overlay') === 'skeleton' ? 'skeleton' : 'outline';
+      return localStorage.getItem('movelab.overlay') === 'outline' ? 'outline' : 'skeleton';
     } catch {
-      return 'outline';
+      return 'skeleton';
     }
   });
   useEffect(() => setOverlayMode(overlayMode), [overlayMode, setOverlayMode]);

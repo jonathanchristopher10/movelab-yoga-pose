@@ -27,6 +27,7 @@ const MODEL_PATH = '/models/pose_landmarker_lite.task';
 const OUTLINE_RGB = [169, 185, 154] as const;
 const SAGE = 'rgb(169,185,154)';
 const JOINT_COLOR = '#FFFFFF';
+const LAST_FACE_INDEX = 10; // MediaPipe pose landmarks 0–10 are the face
 const MASK_THRESHOLD = 0.7; // person-confidence cutoff
 const EDGE_BLUR = 10; // ring thickness at mask resolution (px); larger = thicker outline
 
@@ -42,7 +43,7 @@ export function usePoseTracker() {
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
   const targetAnglesRef = useRef<Record<string, number[]>>({});
   const poseIdRef = useRef<Pose['id']>('tree');
-  const modeRef = useRef<OverlayMode>('outline');
+  const modeRef = useRef<OverlayMode>('skeleton');
 
   const rafRef = useRef(0);
   const lastVideoTimeRef = useRef(-1);
@@ -268,7 +269,11 @@ export function usePoseTracker() {
     ctx.strokeStyle = SAGE;
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
+
+    // Body lines only — skip the face landmarks (0–10: nose, eyes, ears, mouth),
+    // which read as a tangle. The head is drawn as a single circle below.
     for (const { start, end } of PoseLandmarker.POSE_CONNECTIONS) {
+      if (start <= LAST_FACE_INDEX || end <= LAST_FACE_INDEX) continue;
       const a = lm[start];
       const b = lm[end];
       if (!a || !b) continue;
@@ -277,8 +282,40 @@ export function usePoseTracker() {
       ctx.lineTo(px(b), py(b));
       ctx.stroke();
     }
+
+    // Head circle + neck. Center on the midpoint of the ears (falls back to the
+    // nose); size from ear spacing, or from shoulder width if the ears aren't seen.
+    const nose = lm[0];
+    const lEar = lm[7];
+    const rEar = lm[8];
+    const lSho = lm[11];
+    const rSho = lm[12];
+    if (nose && lSho && rSho) {
+      const earsSeen = lEar && rEar && (lEar.visibility ?? 1) > 0.3 && (rEar.visibility ?? 1) > 0.3;
+      const cx = earsSeen ? (px(lEar) + px(rEar)) / 2 : px(nose);
+      const cy = earsSeen ? (py(lEar) + py(rEar)) / 2 : py(nose);
+      const shoulderW = Math.hypot(px(lSho) - px(rSho), py(lSho) - py(rSho));
+      const earW = earsSeen ? Math.hypot(px(lEar) - px(rEar), py(lEar) - py(rEar)) : 0;
+      const r = Math.max(earW * 0.75, shoulderW * 0.28, 10);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Neck: from the bottom of the head to the midpoint between the shoulders.
+      const mx = (px(lSho) + px(rSho)) / 2;
+      const my = (py(lSho) + py(rSho)) / 2;
+      const len = Math.hypot(mx - cx, my - cy) || 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + ((mx - cx) / len) * r, cy + ((my - cy) / len) * r);
+      ctx.lineTo(mx, my);
+      ctx.stroke();
+    }
+
+    // Joint dots (body only).
     ctx.fillStyle = JOINT_COLOR;
-    for (const p of lm) {
+    for (let i = LAST_FACE_INDEX + 1; i < lm.length; i++) {
+      const p = lm[i];
       ctx.beginPath();
       ctx.arc(px(p), py(p), 3, 0, Math.PI * 2);
       ctx.fill();
